@@ -93,7 +93,7 @@ weather_df |>
 
 ![](viz_part2_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
-Labels
+## Labels
 
 ``` r
 weather_df |> 
@@ -111,7 +111,7 @@ weather_df |>
 
 ![](viz_part2_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
-Scales
+## Scales
 
 ``` r
 weather_df |> 
@@ -205,7 +205,7 @@ ggp_temp_plot
 `discrete = TRUE` bceause the `color` aesthetic is mapped to a discrete
 variable!
 
-Themes
+### Themes
 
 `theme_gray`
 
@@ -278,3 +278,220 @@ weather_df |>
     ## Warning: Removed 19 rows containing missing values (`geom_point()`).
 
 ![](viz_part2_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+
+figure preferences in global options; copy and paste this at the
+beginning of every new file
+
+``` r
+library(tidyverse)
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+```
+
+## Data argument in `geom_*`
+
+``` r
+central_park_df =
+  weather_df |> 
+  filter(name == "CentralPark_NY")
+
+molokai_df =
+  weather_df |> 
+  filter(name == "Molokai_HI")
+
+ggplot(data = molokai_df, aes(x = date, y = tmax, color = name)) +
+  geom_point() +
+  geom_line(data = central_park_df)
+```
+
+    ## Warning: Removed 1 rows containing missing values (`geom_point()`).
+
+<img src="viz_part2_files/figure-gfm/unnamed-chunk-15-1.png" width="90%" />
+
+## patchwork
+
+``` r
+tmax_tmin_p =
+  weather_df |> 
+  ggplot(aes(x = tmax, y = tmin, color = name)) +
+  geom_point(alpha = .5) +
+  theme(legend.position = "none")
+
+prcp_dens_p =
+  weather_df |> 
+  filter(prcp > 0) |> 
+  ggplot(aes(x = prcp, fill = name)) +
+  geom_density(alpha = .5) +
+  theme(legend.position = "none")
+
+tmax_date_p =
+  weather_df |> 
+  ggplot(aes(x = date, y = tmax, color = name)) +
+  geom_point(alpha = .5) +
+  geom_smooth(se = FALSE) +
+  theme(legend.position = "bottom")
+
+(tmax_tmin_p + prcp_dens_p) / tmax_date_p
+```
+
+    ## Warning: Removed 17 rows containing missing values (`geom_point()`).
+
+    ## `geom_smooth()` using method = 'loess' and formula = 'y ~ x'
+
+    ## Warning: Removed 17 rows containing non-finite values (`stat_smooth()`).
+    ## Removed 17 rows containing missing values (`geom_point()`).
+
+<img src="viz_part2_files/figure-gfm/unnamed-chunk-16-1.png" width="90%" />
+
+## Data manipulation
+
+Reordering `name` by hand
+
+``` r
+weather_df |> 
+  mutate(name = forcats::fct_relevel(name, c("Molokai_HI", "CentralPark_NY", "Waterhole_WA"))) |> 
+  ggplot(aes(x = name, y = tmax)) +
+  geom_violin(aes(fill = name), color = "blue", alpha = .5) +
+  theme(legend.position = "bottom")
+```
+
+    ## Warning: Removed 17 rows containing non-finite values (`stat_ydensity()`).
+
+<img src="viz_part2_files/figure-gfm/unnamed-chunk-17-1.png" width="90%" />
+
+Reordering `name` according to `tmax` values in each name
+
+``` r
+weather_df |> 
+  mutate(name = forcats::fct_reorder(name, tmax)) |> 
+  ggplot(aes(x = name, y = tmax)) +
+  geom_violin(aes(fill = name), color = "blue", alpha = .5) +
+  theme(legend.position = "bottom")
+```
+
+    ## Warning: There was 1 warning in `mutate()`.
+    ## ℹ In argument: `name = forcats::fct_reorder(name, tmax)`.
+    ## Caused by warning:
+    ## ! `fct_reorder()` removing 17 missing values.
+    ## ℹ Use `.na_rm = TRUE` to silence this message.
+    ## ℹ Use `.na_rm = FALSE` to preserve NAs.
+
+    ## Warning: Removed 17 rows containing non-finite values (`stat_ydensity()`).
+
+<img src="viz_part2_files/figure-gfm/unnamed-chunk-18-1.png" width="90%" />
+
+Making a 3 panel plot showing densities for `tmax` and `tmin` within
+each location
+
+``` r
+weather_df |> 
+  select(name, tmax, tmin) |> 
+  pivot_longer(
+    tmax:tmin,
+    names_to = "observation",
+    values_to = "temp") |> 
+  ggplot(aes(x = temp, fill = observation)) +
+  geom_density(alpha = .5) +
+  facet_grid(~name) +
+  viridis::scale_fill_viridis(discrete = TRUE)
+```
+
+    ## Warning: Removed 34 rows containing non-finite values (`stat_density()`).
+
+<img src="viz_part2_files/figure-gfm/unnamed-chunk-19-1.png" width="90%" />
+
+Emphasizing data tidiness for visualization
+
+``` r
+pulse_data = 
+  haven::read_sas("./data/public_pulse_data.sas7bdat") |>
+  janitor::clean_names() |>
+  pivot_longer(
+    bdi_score_bl:bdi_score_12m,
+    names_to = "visit", 
+    names_prefix = "bdi_score_",
+    values_to = "bdi") |>
+  select(id, visit, everything()) |>
+  mutate(
+    visit = recode(visit, "bl" = "00m"),
+    visit = factor(visit, levels = str_c(c("00", "01", "06", "12"), "m"))) |>
+  arrange(id, visit)
+
+ggplot(pulse_data, aes(x = visit, y = bdi)) + 
+  geom_boxplot()
+```
+
+    ## Warning: Removed 879 rows containing non-finite values (`stat_boxplot()`).
+
+<img src="viz_part2_files/figure-gfm/unnamed-chunk-20-1.png" width="90%" />
+
+Revisiting FAS data
+
+``` r
+pup_data = 
+  read_csv("data/FAS_pups.csv") |>
+  janitor::clean_names() |>
+  mutate(
+    sex = 
+      case_match(
+        sex, 
+        1 ~ "male", 
+        2 ~ "female"))
+```
+
+    ## Rows: 313 Columns: 6
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr (1): Litter Number
+    ## dbl (5): Sex, PD ears, PD eyes, PD pivot, PD walk
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+``` r
+litter_data =
+  read_csv("data/FAS_litters.csv") |> 
+  janitor::clean_names() |> 
+  separate(group, into = c("dose", "day_of_tx"), sep = 3)
+```
+
+    ## Rows: 49 Columns: 8
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr (2): Group, Litter Number
+    ## dbl (6): GD0 weight, GD18 weight, GD of Birth, Pups born alive, Pups dead @ ...
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+``` r
+fas_data = left_join(pup_data, litter_data, by = "litter_number")
+
+fas_data |> 
+  select(sex, dose, day_of_tx, pd_ears:pd_walk) |> 
+  pivot_longer(
+    pd_ears:pd_walk,
+    names_to = "outcome",
+    values_to = "pn_day") |> 
+  drop_na() |> 
+  mutate(outcome = forcats::fct_reorder(outcome, pn_day, median)) |> 
+  ggplot(aes(x = dose, y = pn_day)) +
+  geom_violin() +
+  facet_grid(day_of_tx ~ outcome)
+```
+
+<img src="viz_part2_files/figure-gfm/unnamed-chunk-21-1.png" width="90%" />
