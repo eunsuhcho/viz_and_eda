@@ -1,0 +1,179 @@
+---
+title: "viz_part2"
+author: "Eunsuh Cho"
+date: "2023-10-03"
+output: github_document
+---
+
+Loading the necessary packages
+
+```{r}
+library(tidyverse)
+library(patchwork)
+```
+
+Loading the NOAA weather data using last week's code
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728", "USW00022534", "USS0023B17S"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2021-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = recode(
+      id, 
+      USW00094728 = "CentralPark_NY", 
+      USW00022534 = "Molokai_HI",
+      USS0023B17S = "Waterhole_WA"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) |>
+  select(name, id, everything())
+
+weather_df
+```
+
+Scatterplot - tmax against tmin
+
+```{r}
+weather_df |> 
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_point(aes(color = name), alpha = .5)
+```
+
+Labels
+
+```{r}
+weather_df |> 
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_point(aes(color = name), alpha = .5) +
+  labs(
+    title = "Temprature plot",
+    x = "Minimum daily temperature (C)",
+    y = "Maximum daily temperature (C)",
+    caption = "Data from the rnoaa package"
+  )
+```
+
+Scales
+
+```{r}
+weather_df |> 
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_point(aes(color = name), alpha = .5) +
+  labs(
+    title = "Temprature plot",
+    x = "Minimum daily temperature (C)",
+    y = "Maximum daily temperature (C)",
+    caption = "Data from the rnoaa package") +
+  scale_x_continuous(
+    breaks = c(-15, 0, 15),
+    labels = c("-15C", "0", "15"))
+```
+
+Other `scale_x_*` and `scale_y_*` options
+
+``` {r}
+weather_df |> 
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_point(aes(color = name), alpha = .5) +
+  labs(
+    title = "Temprature plot",
+    x = "Minimum daily temperature (C)",
+    y = "Maximum daily temperature (C)",
+    caption = "Data from the rnoaa package") +
+  scale_x_continuous(
+    breaks = c(-15, 0, 15),
+    labels = c("-15C", "0", "15"),
+    limits = c(-20, 30)) +
+  scale_y_continuous(
+    trans = "sqrt",
+    position = "right")
+```
+`scale_y_sqrt()` can transform the Y scale, and `xlim()` can control X axis plot limits.
+
+Controlling `color` aesthetic using `scale`s
+
+```{r}
+weather_df |> 
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_point(aes(color = name), alpha = .5) +
+  labs(
+    title = "Temprature plot",
+    x = "Minimum daily temperature (C)",
+    y = "Maximum daily temperature (C)",
+    caption = "Data from the rnoaa package") +
+  scale_color_hue(name = "Location", h = c(100, 300))
+```
+
+Using `viridis` package
+
+```{r}
+ggp_temp_plot =
+weather_df |> 
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_point(aes(color = name), alpha = .5) +
+  labs(
+    title = "Temprature plot",
+    x = "Minimum daily temperature (C)",
+    y = "Maximum daily temperature (C)",
+    caption = "Data from the rnoaa package") +
+  viridis::scale_color_viridis(
+    name = "Location",
+    discrete = TRUE
+  )
+
+ggp_temp_plot
+```
+We used `discrete = TRUE` bceause the `color` aesthetic is mapped to a discrete variable!
+
+Themes
+
+`theme_gray`
+```{r}
+ggp_temp_plot +
+  theme(legend.position = "bottom")
+```
+
+`theme_bw()`
+```{r}
+ggp_temp_plot +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+`theme_classic()`
+```{r}
+ggp_temp_plot +
+  theme_classic() +
+  theme(legend.position = "bottom")
+```
+
+lol excel 2003 theme
+```{r}
+ggp_temp_plot +
+  ggthemes::theme_excel() +
+  theme(legend.position = "bottom")
+```
+
+Learning assessment
+```{r}
+weather_df |> 
+  ggplot(aes(x = date, y = tmax, color = name)) +
+  geom_smooth(se = FALSE) +
+  geom_point(aes(size = prcp), alpha = .75) +
+  labs(
+    title = "Temperature plot",
+    x = "Date",
+    y = "Maximum daily temperature (C)",
+    caption = "Data from the rnoaa package") +
+  viridis::scale_color_viridis(discrete = TRUE) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+
+
+
+
